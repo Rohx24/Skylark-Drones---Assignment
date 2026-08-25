@@ -33,7 +33,7 @@ const STEPS: Step[] = [
   {
     Icon: ReasonIcon,
     title: "Reasoning",
-    body: "Curious how an answer was built? This view shows exactly which tools ran and what data came back for the last question — nothing here is a black box.",
+    body: "Every answer is backed by a trail of tool calls, or “waypoints” — each one shows the exact board, filters, and data it read. More waypoints means more sources cross-referenced; expand “raw payload” on one to see precisely what it returned. Click the waypoint count under any answer to open this right next to the chat — no tab switch needed.",
     view: "reasoning",
   },
   {

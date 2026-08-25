@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -11,6 +12,7 @@ import {
 } from "recharts";
 import { SignalIcon, DataIcon } from "./icons";
 import { inrCompact, inrFull } from "./format";
+import { BoardReport } from "./BoardReport";
 
 const TEAL = "#0e7c72";
 const TEAL_SOFT = "#6aa8a0";
@@ -74,9 +76,21 @@ function CountTooltip({ active, payload, label }: TipProps) {
 const axisTick = { fontSize: 10, fill: "var(--ink-faint)", fontFamily: "var(--font-mono)" };
 
 export function DataView({ data, error }: { data: InsightsData | null; error?: string }) {
+  const [reportOpen, setReportOpen] = useState(false);
+
   return (
     <div className="scroll-thin h-full overflow-y-auto px-5 py-6 md:px-8">
       <div className="mx-auto max-w-4xl space-y-5">
+        <div className="flex items-center justify-between">
+          <span className="tick">live boards · deals + work orders</span>
+          <button
+            onClick={() => setReportOpen(true)}
+            className="focus-ring flex items-center gap-1.5 rounded-md border border-[color:var(--line)] bg-[color:var(--panel-2)] px-3 py-1.5 text-[12px] font-medium text-[color:var(--ink-soft)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
+          >
+            <DataIcon width={13} height={13} /> Board report
+          </button>
+        </div>
+
         {error && (
           <div className="panel px-4 py-3 text-[13px] text-[color:var(--bad)]">
             Couldn’t load live data: {error}
@@ -248,6 +262,8 @@ export function DataView({ data, error }: { data: InsightsData | null; error?: s
           </div>
         )}
       </div>
+
+      {reportOpen && <BoardReport onClose={() => setReportOpen(false)} />}
     </div>
   );
 }

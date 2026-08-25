@@ -88,6 +88,12 @@ export const SignalIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const ChevronIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
 export const CloseIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M6 6l12 12M18 6L6 18" />

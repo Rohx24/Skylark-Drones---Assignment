@@ -1,6 +1,7 @@
 // Flight-path visualization of an answer's tool calls. Each tool call is a
 // "waypoint" plotted along a dashed survey line — the last one is the active
 // target. This is the cartographic replacement for a generic expandable list.
+import { ChevronIcon } from "./icons";
 import { toolLabel, argSummary, type ToolTraceEntry } from "./format";
 
 /** Best-effort friendly chips from a (possibly truncated) result preview. */
@@ -120,7 +121,8 @@ export function WaypointTrail({
 
               {!dense && (
                 <details className="mt-2 group">
-                  <summary className="tick cursor-pointer select-none hover:text-[color:var(--teal)]">
+                  <summary className="tick flex cursor-pointer select-none items-center gap-1 hover:text-[color:var(--teal)]">
+                    <ChevronIcon width={10} height={10} className="chevron" />
                     raw payload
                   </summary>
                   <pre className="scroll-thin mono mt-1.5 max-h-40 overflow-auto rounded border border-[color:var(--line-soft)] bg-[color:var(--panel-inset)] p-2 text-[10px] leading-snug text-[color:var(--ink-soft)]">

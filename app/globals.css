@@ -225,3 +225,38 @@ body {
   outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
+
+/* <summary> keeps its native disclosure triangle even under display:flex (a
+   real cross-browser quirk) — it renders as a stray, unstyled glyph outside
+   the flex gap. Kill it everywhere and use an explicit .chevron instead. */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+.chevron {
+  transition: transform 0.15s ease;
+}
+details[open] > summary .chevron {
+  transform: rotate(90deg);
+}
+
+/* Printing the board report: hide everything except its own root. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #board-report-root,
+  #board-report-root * {
+    visibility: visible;
+  }
+  #board-report-root {
+    position: absolute;
+    inset: 0;
+    max-height: none !important;
+    width: 100%;
+    box-shadow: none;
+    border: none;
+  }
+}

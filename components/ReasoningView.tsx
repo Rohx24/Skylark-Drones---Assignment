@@ -1,7 +1,7 @@
 "use client";
 
 import { WaypointTrail } from "./WaypointTrail";
-import { LayersIcon, ReasonIcon } from "./icons";
+import { LayersIcon, ReasonIcon, ChevronIcon } from "./icons";
 import { lastTracedAnswer, type ChatMessage } from "./format";
 
 // The real pipeline, described as-built (verified against the code):
@@ -67,6 +67,7 @@ export function ReasoningView({ messages }: { messages: ChatMessage[] }) {
         {/* permanent architecture explainer — collapsible so repeat visits stay uncluttered */}
         <details className="panel corner-ticks px-5 py-4" open>
           <summary className="mb-1 flex cursor-pointer select-none items-center gap-2 text-[color:var(--teal)]">
+            <ChevronIcon width={12} height={12} className="chevron shrink-0" />
             <LayersIcon width={17} height={17} />
             <span className="tick text-[color:var(--teal-deep)]">Architecture · how it thinks</span>
           </summary>

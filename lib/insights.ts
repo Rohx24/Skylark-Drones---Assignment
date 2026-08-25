@@ -62,7 +62,7 @@ function boardCompleteness(
   return { completeness, fields: detailed };
 }
 
-function dealsStatus(deals: DealRecord[]): BoardStatus {
+export function dealsStatus(deals: DealRecord[]): BoardStatus {
   const n = deals.length;
   const { completeness, fields } = boardCompleteness(
     [
@@ -86,7 +86,7 @@ function dealsStatus(deals: DealRecord[]): BoardStatus {
   };
 }
 
-function workOrdersStatus(wos: WorkOrderRecord[]): BoardStatus {
+export function workOrdersStatus(wos: WorkOrderRecord[]): BoardStatus {
   const n = wos.length;
   const { completeness, fields } = boardCompleteness(
     [
