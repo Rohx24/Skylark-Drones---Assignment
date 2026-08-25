@@ -129,7 +129,7 @@ export default function Console() {
     <div className="flex h-screen flex-col">
       {/* top bar */}
       <header className="flex items-center justify-between border-b border-[color:var(--line)] bg-[color:var(--panel)]/80 px-4 py-2.5 md:px-6">
-        <div className="flex items-center gap-2.5">
+        <div data-tour="brand" className="flex items-center gap-2.5 rounded-md">
           <span className="text-[color:var(--teal)]">
             <DroneIcon width={20} height={20} />
           </span>
@@ -142,9 +142,12 @@ export default function Console() {
         </div>
 
         <div className="flex items-center gap-4">
-          <SyncBadge insights={insights} error={insightsError} />
+          <div data-tour="sync-badge">
+            <SyncBadge insights={insights} error={insightsError} />
+          </div>
           <div className="flex items-center gap-1.5">
             <button
+              data-tour="btn-export"
               onClick={() => setExportOpen(true)}
               title="Export conversation"
               className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
@@ -152,6 +155,7 @@ export default function Console() {
               <DownloadIcon width={14} height={14} />
             </button>
             <button
+              data-tour="btn-report"
               onClick={() => setReportOpen(true)}
               title="Board report"
               className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
@@ -159,6 +163,7 @@ export default function Console() {
               <DataIcon width={14} height={14} />
             </button>
             <button
+              data-tour="btn-help"
               onClick={() => setTourOpen(true)}
               title="Replay the guide"
               className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
@@ -166,7 +171,9 @@ export default function Console() {
               <HelpIcon width={14} height={14} />
             </button>
           </div>
-          <ModeToggle mode={mode} setMode={setMode} />
+          <div data-tour="mode-toggle">
+            <ModeToggle mode={mode} setMode={setMode} />
+          </div>
         </div>
       </header>
 
@@ -178,15 +185,12 @@ export default function Console() {
             return (
               <button
                 key={v.id}
+                data-tour={`nav-${v.id}`}
                 onClick={() => setView(v.id)}
                 className={`focus-ring flex flex-1 items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors md:flex-none ${
                   active
                     ? "bg-[color:var(--teal)] text-white"
                     : "text-[color:var(--ink-soft)] hover:bg-[color:var(--panel-inset)]"
-                } ${
-                  tourOpen && active
-                    ? "ring-2 ring-[color:var(--amber)] ring-offset-2 ring-offset-[color:var(--panel)]"
-                    : ""
                 }`}
               >
                 <v.Icon width={17} height={17} />
