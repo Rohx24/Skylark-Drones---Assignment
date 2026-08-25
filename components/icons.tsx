@@ -87,3 +87,17 @@ export const SignalIcon = (p: SVGProps<SVGSVGElement>) => (
     <circle cx="12" cy="18" r="1.2" fill="currentColor" stroke="none" />
   </svg>
 );
+
+export const CloseIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
+export const HelpIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.3 9.2a2.7 2.7 0 1 1 3.8 2.5c-1 .45-1.6 1.1-1.6 2.3" />
+    <circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+);

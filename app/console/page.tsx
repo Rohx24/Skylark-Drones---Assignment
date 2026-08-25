@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AskView } from "@/components/AskView";
 import { ReasoningView } from "@/components/ReasoningView";
 import { DataView, type InsightsData } from "@/components/DataView";
-import { AskIcon, ReasonIcon, DataIcon, DroneIcon } from "@/components/icons";
+import { Onboarding, ONBOARDED_KEY } from "@/components/Onboarding";
+import { AskIcon, ReasonIcon, DataIcon, DroneIcon, HelpIcon } from "@/components/icons";
 import { relativeTime, type ChatMessage } from "@/components/format";
 
 type View = "ask" | "reasoning" | "data";
@@ -24,10 +25,20 @@ export default function Console() {
   const [insights, setInsights] = useState<InsightsData | null>(null);
   const [insightsError, setInsightsError] = useState<string>();
   const [, setTick] = useState(0); // re-render for "synced Xs ago"
+  const [tourOpen, setTourOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
+
+  // First visit only: auto-open the guided tour once, then never again.
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem(ONBOARDED_KEY)) setTourOpen(true);
+    } catch {
+      // localStorage unavailable — skip the tour rather than block the app.
+    }
+  }, []);
 
   // Live insights: fetch on mount, refresh every 60s; tick relative time.
   useEffect(() => {
@@ -128,6 +139,13 @@ export default function Console() {
 
         <div className="flex items-center gap-4">
           <SyncBadge insights={insights} error={insightsError} />
+          <button
+            onClick={() => setTourOpen(true)}
+            title="Replay the guide"
+            className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
+          >
+            <HelpIcon width={14} height={14} />
+          </button>
           <ModeToggle mode={mode} setMode={setMode} />
         </div>
       </header>
@@ -145,6 +163,10 @@ export default function Console() {
                   active
                     ? "bg-[color:var(--teal)] text-white"
                     : "text-[color:var(--ink-soft)] hover:bg-[color:var(--panel-inset)]"
+                } ${
+                  tourOpen && active
+                    ? "ring-2 ring-[color:var(--amber)] ring-offset-2 ring-offset-[color:var(--panel)]"
+                    : ""
                 }`}
               >
                 <v.Icon width={17} height={17} />
@@ -190,6 +212,16 @@ export default function Console() {
           </ViewPane>
         </main>
       </div>
+
+      <Onboarding
+        open={tourOpen}
+        onOpenChange={setTourOpen}
+        setView={setView}
+        onFinish={() => {
+          setView("ask");
+          setTimeout(() => inputRef.current?.focus(), 30);
+        }}
+      />
     </div>
   );
 }

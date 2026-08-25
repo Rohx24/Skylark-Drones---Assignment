@@ -3,8 +3,9 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { RichText } from "./RichText";
 import { MiniBarChart } from "./MiniBarChart";
-import { CopyIcon, CheckIcon, SendIcon, ReasonIcon } from "./icons";
-import { buildBrief, type ChartSeries, type ChatMessage, type Confidence } from "./format";
+import { WaypointTrail } from "./WaypointTrail";
+import { CopyIcon, CheckIcon, SendIcon, ReasonIcon, CloseIcon } from "./icons";
+import { buildBrief, lastTracedAnswer, type ChartSeries, type ChatMessage, type Confidence } from "./format";
 
 const STARTERS = [
   { tag: "Pipeline", q: "How's the mining pipeline shaping up right now?" },
@@ -50,6 +51,7 @@ export const AskView = forwardRef<HTMLInputElement, Props>(function AskView(
   inputRef
 ) {
   const [input, setInput] = useState("");
+  const [reasoningIdx, setReasoningIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,64 +65,150 @@ export const AskView = forwardRef<HTMLInputElement, Props>(function AskView(
     setInput("");
   }
 
+  const latestTraced = lastTracedAnswer(messages);
+  const panelTarget =
+    reasoningIdx != null ? lastTracedAnswer(messages, reasoningIdx) : null;
+
   return (
-    <div className="flex h-full flex-col">
-      <div ref={scrollRef} className="scroll-thin flex-1 overflow-y-auto px-6 py-10 md:px-10">
-        <div className="u-column">
-          {messages.length === 0 ? (
-            <EmptyState onPick={submit} />
-          ) : (
-            <div className="space-y-9">
-              {messages.map((m, i) => (
-                <MessageRow
-                  key={i}
-                  message={m}
-                  question={
-                    m.role === "assistant" && messages[i - 1]?.role === "user"
-                      ? messages[i - 1].content
-                      : ""
-                  }
-                  mode={mode}
-                  isLastAssistant={m.role === "assistant" && i === messages.length - 1}
-                  onOpenReasoning={onOpenReasoning}
-                  onFollowup={submit}
-                />
-              ))}
-              {loading && <ThinkingRow />}
-            </div>
-          )}
+    <div className="relative flex h-full">
+      <div className="flex h-full min-w-0 flex-1 flex-col">
+        <div ref={scrollRef} className="scroll-thin flex-1 overflow-y-auto px-6 py-10 md:px-10">
+          <div className="u-column">
+            {messages.length === 0 ? (
+              <EmptyState onPick={submit} />
+            ) : (
+              <div className="space-y-9">
+                {messages.map((m, i) => (
+                  <MessageRow
+                    key={i}
+                    message={m}
+                    question={
+                      m.role === "assistant" && messages[i - 1]?.role === "user"
+                        ? messages[i - 1].content
+                        : ""
+                    }
+                    mode={mode}
+                    isLastAssistant={m.role === "assistant" && i === messages.length - 1}
+                    reasoningActive={reasoningIdx === i}
+                    onToggleReasoning={() => setReasoningIdx((cur) => (cur === i ? null : i))}
+                    onFollowup={submit}
+                  />
+                ))}
+                {loading && <ThinkingRow />}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* input dock */}
+        <div className="border-t border-[color:var(--line-soft)] px-6 py-4 md:px-10">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(input);
+            }}
+            className="u-column flex items-center gap-2.5"
+          >
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about pipeline, revenue, work orders, billing…"
+              disabled={loading}
+              className="focus-ring flex-1 rounded-lg border border-[color:var(--line)] bg-[color:var(--panel-2)] px-4 py-3 text-[15px] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-faint)]"
+            />
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="focus-ring flex items-center gap-1.5 rounded-lg bg-[color:var(--teal)] px-4 py-3 text-[14px] font-medium text-white transition-opacity disabled:opacity-40"
+            >
+              <SendIcon width={16} height={16} /> Send
+            </button>
+          </form>
         </div>
       </div>
 
-      {/* input dock */}
-      <div className="border-t border-[color:var(--line-soft)] px-6 py-4 md:px-10">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(input);
-          }}
-          className="u-column flex items-center gap-2.5"
+      {/* floating toggle — reasoning next to the chat, no tab switch needed */}
+      {latestTraced && reasoningIdx === null && (
+        <button
+          onClick={() => setReasoningIdx(latestTraced.index)}
+          className="focus-ring absolute right-5 top-5 z-10 flex items-center gap-1.5 rounded-full border border-[color:var(--line)] bg-[color:var(--panel-2)]/90 px-3 py-1.5 text-[12px] font-medium text-[color:var(--ink-soft)] shadow-sm backdrop-blur transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)] md:right-8"
         >
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about pipeline, revenue, work orders, billing…"
-            disabled={loading}
-            className="focus-ring flex-1 rounded-lg border border-[color:var(--line)] bg-[color:var(--panel-2)] px-4 py-3 text-[15px] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-faint)]"
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="focus-ring flex items-center gap-1.5 rounded-lg bg-[color:var(--teal)] px-4 py-3 text-[14px] font-medium text-white transition-opacity disabled:opacity-40"
-          >
-            <SendIcon width={16} height={16} /> Send
-          </button>
-        </form>
-      </div>
+          <ReasonIcon width={14} height={14} /> Reasoning
+        </button>
+      )}
+
+      {panelTarget && (
+        <ReasoningPanel
+          message={panelTarget.message}
+          question={panelTarget.question}
+          onClose={() => setReasoningIdx(null)}
+          onOpenFull={() => {
+            setReasoningIdx(null);
+            onOpenReasoning();
+          }}
+        />
+      )}
     </div>
   );
 });
+
+function ReasoningPanel({
+  message,
+  question,
+  onClose,
+  onOpenFull,
+}: {
+  message: ChatMessage;
+  question: string;
+  onClose: () => void;
+  onOpenFull: () => void;
+}) {
+  const trace = message.toolTrace ?? [];
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-[color:var(--paper)] md:static md:z-auto md:w-[360px] md:shrink-0 md:border-l md:border-[color:var(--line-soft)] md:bg-[color:var(--panel)]/60">
+      <div className="flex items-center justify-between border-b border-[color:var(--line-soft)] px-4 py-3.5">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[color:var(--teal-soft)] text-[color:var(--teal-deep)]">
+            <ReasonIcon width={14} height={14} />
+          </span>
+          <div>
+            <div className="text-[13px] font-semibold text-[color:var(--ink)]">Reasoning</div>
+            <div className="tick">
+              {trace.length} waypoint{trace.length === 1 ? "" : "s"}
+              {message.model ? ` · ${message.model}` : ""}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="focus-ring flex h-7 w-7 items-center justify-center rounded-full text-[color:var(--ink-faint)] transition-colors hover:bg-[color:var(--panel-inset)] hover:text-[color:var(--ink)]"
+          title="Close"
+        >
+          <CloseIcon width={15} height={15} />
+        </button>
+      </div>
+
+      <div className="scroll-thin flex-1 overflow-y-auto px-4 py-4">
+        {question && (
+          <p className="mb-4 rounded border-l-2 border-[color:var(--teal)] bg-[color:var(--panel-inset)] px-3 py-2 text-[12px] italic text-[color:var(--ink-soft)]">
+            “{question}”
+          </p>
+        )}
+        <WaypointTrail trace={trace} dense />
+      </div>
+
+      <div className="border-t border-[color:var(--line-soft)] px-4 py-3">
+        <button
+          onClick={onOpenFull}
+          className="u-meta transition-colors hover:text-[color:var(--teal-deep)]"
+        >
+          Open full architecture view →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function EmptyState({ onPick }: { onPick: (q: string) => void }) {
   return (
@@ -153,14 +241,16 @@ function MessageRow({
   question,
   mode,
   isLastAssistant,
-  onOpenReasoning,
+  reasoningActive,
+  onToggleReasoning,
   onFollowup,
 }: {
   message: ChatMessage;
   question: string;
   mode: "founder" | "technical";
   isLastAssistant: boolean;
-  onOpenReasoning: () => void;
+  reasoningActive: boolean;
+  onToggleReasoning: () => void;
   onFollowup: (q: string) => void;
 }) {
   if (message.role === "user") {
@@ -192,7 +282,8 @@ function MessageRow({
           message={message}
           question={question}
           mode={mode}
-          onOpenReasoning={onOpenReasoning}
+          reasoningActive={reasoningActive}
+          onToggleReasoning={onToggleReasoning}
         />
       )}
 
@@ -207,12 +298,14 @@ function AnswerFooter({
   message,
   question,
   mode,
-  onOpenReasoning,
+  reasoningActive,
+  onToggleReasoning,
 }: {
   message: ChatMessage;
   question: string;
   mode: "founder" | "technical";
-  onOpenReasoning: () => void;
+  reasoningActive: boolean;
+  onToggleReasoning: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const toolCount = message.toolTrace?.length ?? 0;
@@ -235,10 +328,12 @@ function AnswerFooter({
         {copied ? "Copied" : "Copy brief"}
       </button>
 
-      {mode === "technical" && toolCount > 0 && (
+      {toolCount > 0 && (
         <button
-          onClick={onOpenReasoning}
-          className="u-meta flex items-center gap-1.5 transition-colors hover:text-[color:var(--teal)]"
+          onClick={onToggleReasoning}
+          className={`u-meta flex items-center gap-1.5 transition-colors hover:text-[color:var(--teal)] ${
+            reasoningActive ? "font-medium text-[color:var(--teal-deep)]" : ""
+          }`}
         >
           <ReasonIcon width={13} height={13} />
           {toolCount} waypoint{toolCount === 1 ? "" : "s"}

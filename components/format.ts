@@ -76,6 +76,23 @@ export function toolLabel(name: string): string {
   return TOOL_LABELS[name] ?? name;
 }
 
+/** Walks messages backward from `uptoIndex` (default: end) for the nearest
+ *  tool-backed assistant answer, paired with the user question that led to it. */
+export function lastTracedAnswer(
+  messages: ChatMessage[],
+  uptoIndex?: number
+): { message: ChatMessage; question: string; index: number } | null {
+  const end = uptoIndex ?? messages.length - 1;
+  for (let i = end; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "assistant" && (m.toolTrace?.length ?? 0) > 0) {
+      const question = i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1].content : "";
+      return { message: m, question, index: i };
+    }
+  }
+  return null;
+}
+
 /** Compact one-line summary of tool args for a waypoint header. */
 export function argSummary(args: Record<string, unknown>): string {
   const parts = Object.entries(args)

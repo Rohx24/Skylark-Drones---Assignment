@@ -1,8 +1,8 @@
 "use client";
 
 import { WaypointTrail } from "./WaypointTrail";
-import { LayersIcon } from "./icons";
-import type { ChatMessage } from "./format";
+import { LayersIcon, ReasonIcon } from "./icons";
+import { lastTracedAnswer, type ChatMessage } from "./format";
 
 // The real pipeline, described as-built (verified against the code):
 // browser chat → /api/chat → runAgent (OpenAI tool-calling) → lib/tools.ts
@@ -16,52 +16,61 @@ const STAGES = [
 ];
 
 export function ReasoningView({ messages }: { messages: ChatMessage[] }) {
-  const lastWithTrace = [...messages]
-    .reverse()
-    .find((m) => m.role === "assistant" && (m.toolTrace?.length ?? 0) > 0);
-  const lastQuestionIdx = lastWithTrace ? messages.lastIndexOf(lastWithTrace) : -1;
-  const question =
-    lastQuestionIdx > 0 && messages[lastQuestionIdx - 1]?.role === "user"
-      ? messages[lastQuestionIdx - 1].content
-      : "";
+  const traced = lastTracedAnswer(messages);
+  const trace = traced?.message.toolTrace ?? [];
+  const liveReads = trace.filter((t) => t.name.startsWith("query_") || t.name === "cross_board_lookup").length;
 
   return (
     <div className="scroll-thin h-full overflow-y-auto px-5 py-6 md:px-8">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* flight path for the latest answer */}
         <section className="panel corner-ticks px-5 py-4">
-          <div className="mb-3 flex items-baseline justify-between">
-            <div>
-              <span className="tick text-[color:var(--teal-deep)]">Flight path · latest answer</span>
-              <h3 className="mt-0.5 text-[15px] font-semibold text-[color:var(--ink)]">
-                Tool waypoints
-              </h3>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[color:var(--teal-soft)] text-[color:var(--teal-deep)]">
+                <ReasonIcon width={16} height={16} />
+              </span>
+              <div>
+                <span className="tick text-[color:var(--teal-deep)]">Flight path · latest answer</span>
+                <h3 className="mt-0.5 text-[15px] font-semibold text-[color:var(--ink)]">Tool waypoints</h3>
+              </div>
             </div>
-            {lastWithTrace?.model && <span className="tick">{lastWithTrace.model}</span>}
+            {traced && (
+              <div className="flex shrink-0 items-center gap-3 pt-0.5">
+                <StatChip value={trace.length} label={trace.length === 1 ? "waypoint" : "waypoints"} />
+                <StatChip value={liveReads} label="live reads" />
+                {traced.message.model && <span className="tick">{traced.message.model}</span>}
+              </div>
+            )}
           </div>
 
-          {question && (
+          {traced?.question && (
             <p className="mb-4 rounded border-l-2 border-[color:var(--teal)] bg-[color:var(--panel-inset)] px-3 py-2 text-[12.5px] italic text-[color:var(--ink-soft)]">
-              “{question}”
+              “{traced.question}”
             </p>
           )}
 
-          {lastWithTrace ? (
-            <WaypointTrail trace={lastWithTrace.toolTrace!} />
+          {traced ? (
+            <WaypointTrail trace={trace} />
           ) : (
-            <p className="tick py-4">
-              No tool-backed answer yet. Ask something in the Ask view and its flight path appears here.
-            </p>
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <span className="text-[color:var(--ink-faint)]">
+                <ReasonIcon width={22} height={22} />
+              </span>
+              <p className="tick max-w-xs">
+                No tool-backed answer yet — ask something in the Ask view and its flight path appears here.
+              </p>
+            </div>
           )}
         </section>
 
-        {/* permanent architecture explainer */}
-        <section className="panel corner-ticks px-5 py-4">
-          <div className="mb-1 flex items-center gap-2 text-[color:var(--teal)]">
+        {/* permanent architecture explainer — collapsible so repeat visits stay uncluttered */}
+        <details className="panel corner-ticks px-5 py-4" open>
+          <summary className="mb-1 flex cursor-pointer select-none items-center gap-2 text-[color:var(--teal)]">
             <LayersIcon width={17} height={17} />
             <span className="tick text-[color:var(--teal-deep)]">Architecture · how it thinks</span>
-          </div>
-          <p className="mb-4 max-w-2xl text-[12.5px] leading-relaxed text-[color:var(--ink-soft)]">
+          </summary>
+          <p className="mb-4 mt-3 max-w-2xl text-[12.5px] leading-relaxed text-[color:var(--ink-soft)]">
             Every answer travels the same five legs. The split that matters:{" "}
             <strong className="font-semibold text-[color:var(--ink)]">
               the model chooses the tools; the server computes the numbers.
@@ -90,8 +99,17 @@ export function ReasoningView({ messages }: { messages: ChatMessage[] }) {
               </li>
             ))}
           </ol>
-        </section>
+        </details>
       </div>
     </div>
+  );
+}
+
+function StatChip({ value, label }: { value: number; label: string }) {
+  return (
+    <span className="flex items-baseline gap-1">
+      <span className="mono text-[13px] font-semibold text-[color:var(--ink)]">{value}</span>
+      <span className="tick">{label}</span>
+    </span>
   );
 }
