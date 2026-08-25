@@ -2,26 +2,181 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Skylark Survey Console — cartographic / aerial-survey visual identity.
+  Muted teal / amber / slate on warm map-paper. Deliberately NOT glass,
+  NOT purple, NOT a soft "AI product" look. Technical, restrained, map-like.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #e9ece5;
+  --panel: #f6f6f1;
+  --panel-2: #fdfdfa;
+  --panel-inset: #eff1ea;
+
+  --ink: #17242a;
+  --ink-soft: #45565c;
+  --ink-faint: #7b898e;
+
+  --teal: #0e7c72;
+  --teal-deep: #0a5a53;
+  --teal-soft: #d6e7e4;
+
+  --amber: #bd7718;
+  --amber-deep: #98600f;
+  --amber-soft: #f0ddc0;
+
+  --line: rgba(23, 36, 42, 0.14);
+  --line-soft: rgba(23, 36, 42, 0.08);
+  --contour: rgba(14, 124, 114, 0.07);
+  --grid: rgba(23, 36, 42, 0.045);
+
+  --ok: #0e7c72;
+  --warn: #bd7718;
+  --bad: #a2432b;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-color: var(--paper);
+  /* Layered cartographic ground: fine grid + faint contour rings. */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    radial-gradient(ellipse 60% 50% at 18% 12%, var(--contour) 0 1px, transparent 1px 100%),
+    radial-gradient(ellipse 45% 38% at 82% 78%, var(--contour) 0 1px, transparent 1px 100%);
+  background-size:
+    26px 26px,
+    26px 26px,
+    100% 100%,
+    100% 100%;
+  background-attachment: fixed;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Mono numerals for a survey-instrument feel. */
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  letter-spacing: -0.01em;
+}
+
+.tick {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Map-registration corner marks on panels. */
+.panel {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.panel-2 {
+  background: var(--panel-2);
+}
+.corner-ticks::before,
+.corner-ticks::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--teal);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.corner-ticks::before {
+  top: 6px;
+  left: 6px;
+  border-right: none;
+  border-bottom: none;
+}
+.corner-ticks::after {
+  bottom: 6px;
+  right: 6px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Thin scrollbars in the cartographic register. */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Flight-path dashes animate very slowly, like a plotted survey line. */
+@keyframes dash-drift {
+  to {
+    stroke-dashoffset: -16;
   }
+}
+.flightline {
+  stroke-dasharray: 3 4;
+  animation: dash-drift 2.4s linear infinite;
+}
+
+@keyframes ping-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.ping-ring {
+  animation: ping-ring 1.8s ease-out infinite;
+}
+
+@keyframes waypoint-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.blink {
+  animation: waypoint-blink 1.4s ease-in-out infinite;
+}
+
+/* Bounce dots for the thinking state. */
+@keyframes soft-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
 }

@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# skylark-bi-agent
 
-## Getting Started
+A conversational business-intelligence agent for Skylark Drones. Founders ask
+natural-language questions; the app answers by querying two **live** monday.com
+boards via the GraphQL API — never from hardcoded CSV data.
 
-First, run the development server:
+Next.js 14 (App Router) · TypeScript · Tailwind · deployable to Vercel.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Phase 1 (this milestone) — data pipeline only
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Piece | Location |
+|---|---|
+| GraphQL client `mondayQuery(query, variables)` | `lib/monday.ts` |
+| `getDealsBoard()` / `getWorkOrdersBoard()` (paginated, typed) | `lib/monday.ts` |
+| Column-id maps + record/typed shapes | `lib/types.ts` |
+| Pure normalizers (`parseDate`, `canonicalizeDealStage`, `parseQuantity`, `canonicalizeBillingStatus`, …) | `lib/normalize.ts` |
+| `POST /api/monday` (thin GraphQL passthrough) | `app/api/monday/route.ts` |
+| `GET /api/health` (counts + normalization-issue summary) | `app/api/health/route.ts` |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Phase 2 (the chat UI and the OpenAI tool-calling agent) is **not** built yet.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup
 
-## Learn More
+1. Install deps:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Create `.env.local` from the example and paste your **read-only** monday
+   personal token (Administration → API):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   cp .env.local.example .env.local
+   # then edit .env.local and set MONDAY_API_TOKEN=...
+   ```
 
-## Deploy on Vercel
+3. Run the dev server:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Sanity-check the pipeline:
+
+   ```bash
+   curl -s http://localhost:3000/api/health | jq
+   ```
+
+   Expect ~346 Deals items and ~175 Work Orders items, plus a per-issue
+   normalization summary.
+
+## Data notes / gotchas
+
+- **Deal names are not unique** — the item `name` (e.g. "Sakura") is a masked
+  deal name reused across many unrelated records on both boards.
+- **Cross-board joins are name-based and approximate.** Deals use `Client Code`
+  (COMPANY089-style); Work Orders use `Customer Name Code` (WOCOMPANY_002-style).
+  These ID schemes never match directly, so the only shared field is the
+  (non-unique) name. Every cross-board answer must carry that caveat.
+- **`Close Date (A)` on the Deals board is always empty** and is ignored.
+- **`Sector/service` includes "Tender"**, which is not a real sector — it is
+  flagged (`sectorIsTender`) rather than silently kept.
+- **`Quantities as per PO`** is the messy field: values mix numbers and units
+  inconsistently ("5360 HA", "40MW", "24 Months", "NA", "310.850",
+  "Rate based on MW slabs"). `parseQuantity` returns
+  `{ value, unit, raw, parseable }`; "NA" and non-numeric entries are
+  **unparseable, not zero**.
+- **`Billing Status`** contains a mis-cased "BIlled" typo; `canonicalizeBillingStatus`
+  fixes it while preserving the raw label.
+- Normalizers **never discard the raw value** — every parsed result keeps its
+  `raw` companion.
+
+## Deploy (Vercel)
+
+Set `MONDAY_API_TOKEN` as an environment variable in the Vercel project
+settings (do not commit it), then deploy as a standard Next.js app.
