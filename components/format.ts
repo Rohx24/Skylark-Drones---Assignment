@@ -1,9 +1,17 @@
 // Shared formatting + types for the console frontend.
 
+export interface ChartSeries {
+  dimension: string;
+  metric: string;
+  unit: "currency" | "count";
+  points: { label: string; value: number }[];
+}
+
 export interface ToolTraceEntry {
   name: string;
   arguments: Record<string, unknown>;
   resultPreview: string;
+  chart?: ChartSeries;
 }
 
 export interface Confidence {

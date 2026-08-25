@@ -2,8 +2,9 @@
 
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { RichText } from "./RichText";
+import { MiniBarChart } from "./MiniBarChart";
 import { CopyIcon, CheckIcon, SendIcon, DroneIcon, ReasonIcon } from "./icons";
-import { buildBrief, type ChatMessage, type Confidence } from "./format";
+import { buildBrief, type ChartSeries, type ChatMessage, type Confidence } from "./format";
 
 const STARTERS = [
   { tag: "Pipeline", q: "How's the mining pipeline shaping up right now?" },
@@ -11,6 +12,15 @@ const STARTERS = [
   { tag: "Cross-board", q: "Which won deals don't have a work order yet?" },
   { tag: "Leadership", q: "Give me a leadership update on the Renewables sector." },
 ];
+
+/** The answer's chartable series, if any: the richest grouped tool result. */
+function pickChart(message: ChatMessage): ChartSeries | undefined {
+  const withChart = (message.toolTrace ?? [])
+    .map((t) => t.chart)
+    .filter((c): c is ChartSeries => !!c && c.points.length >= 3);
+  if (withChart.length === 0) return undefined;
+  return withChart.sort((a, b) => b.points.length - a.points.length)[0];
+}
 
 function suggestFollowups(question: string): string[] {
   const q = question.toLowerCase();
@@ -187,6 +197,8 @@ function MessageRow({
         ) : (
           <RichText text={message.content} />
         )}
+
+        {!message.error && pickChart(message) && <MiniBarChart chart={pickChart(message)!} />}
 
         {!message.error && (
           <AnswerFooter

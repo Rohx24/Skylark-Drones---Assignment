@@ -32,6 +32,7 @@ HARD RULES:
 3. Cite DATA-QUALITY caveats INLINE whenever they materially affect the answer. Use real counts from your tools (query results include missing-value counts and percentages; get_data_quality_summary has the full picture). Example: "This total covers only the 165 deals with a recorded value — 52% of deals have none, so the real figure is higher."
 4. For any CROSS-BOARD question (linking deals to work orders), ALWAYS state the name-matching caveat: the boards share no common ID, so matches are by masked deal name only, which repeats across unrelated records — approximate, not definitive. The cross_board_lookup tool returns this caveat text; surface it.
 5. "Revenue" is ambiguous between pipeline value (Deals board 'deal value', which is masked) and actual billing (Work Orders 'billed'/'collected'). Deal value is NOT revenue. When the user says "revenue", DEFAULT to Work Orders billing EXCLUDING GST (amountType 'excl_gst') — GST is a pass-through tax collected for the government, not revenue — and state that assumption in one clause ("actual billed revenue, ex-GST"). In one further line, flag the two alternatives the user might have meant: the GST-inclusive/gross figure, and pipeline deal value (caveat: ~52% of deals have no recorded value). Keep it to those brief lines.
+6. LIST COMPLETENESS: For "what/which" questions that return multiple matching records, NAME every matching record individually — use the records in the tool result's 'sample' array, with whatever fields ARE populated (sector, owner, stage). A missing VALUE is NOT a missing record: the deal's name/sector/owner are still known and useful. NEVER drop a record from the list just because its value/amount is null — instead write "value not recorded" inline next to that record. Only collapse into a summary sentence ("N records, none with a recorded value") when the list is genuinely long (roughly more than 15-20 records) or when 'count' exceeds the number of records in 'sample' (then say you're listing the first N of count). For a small result set like 4 deals, enumerate all four.
 
 STYLE: Lead with the direct answer (a number or a short verdict). Then the key supporting detail. Then caveats. Be concise and founder-appropriate — no walls of text, no restating the question. Use short paragraphs or tight bullet lists. Round large masked numbers sensibly and note they're masked.
 
@@ -138,10 +139,75 @@ async function dispatch(name: string, args: Record<string, unknown>): Promise<un
   }
 }
 
+export interface ChartSeries {
+  dimension: string; // what the groups are (sector, stage, …)
+  metric: string; // what the bars measure ("billed ex-GST", "deals", …)
+  unit: "currency" | "count";
+  points: { label: string; value: number }[];
+}
+
 export interface ToolTraceEntry {
   name: string;
   arguments: Record<string, unknown>;
   resultPreview: string;
+  /** Un-truncated, chart-ready series when the tool grouped by a dimension. */
+  chart?: ChartSeries;
+}
+
+/**
+ * Build a compact chart series from a FULL tool result (not the truncated
+ * preview) when it grouped by a categorical dimension with 3+ groups. The
+ * numbers are taken verbatim from the same groupBreakdown the answer used, so
+ * an inline chart can never disagree with the text.
+ */
+function extractChart(
+  name: string,
+  args: Record<string, unknown>,
+  result: unknown
+): ChartSeries | undefined {
+  const r = result as { groupBreakdown?: unknown; amountTypeUsed?: string };
+  const gb = r?.groupBreakdown;
+  if (!Array.isArray(gb) || gb.length < 3) return undefined;
+
+  const groupBy = typeof args.groupBy === "string" ? args.groupBy : "group";
+
+  // Choose the metric that the answer for this (tool, groupBy) actually leads
+  // with, so bars match the typed numbers.
+  let metric = "records";
+  let unit: "currency" | "count" = "count";
+  let valueOf: (row: Record<string, number>) => number = (row) => row.count ?? 0;
+
+  if (name === "query_work_orders" && (groupBy === "sector" || groupBy === "customerCode")) {
+    const excl = r.amountTypeUsed !== "incl_gst";
+    metric = `billed (${excl ? "ex-GST" : "incl-GST"})`;
+    unit = "currency";
+    valueOf = (row) => row.billedValueSum ?? 0;
+  } else if (name === "query_deals" && (groupBy === "sector" || groupBy === "clientCode")) {
+    // Sector/client comparisons on Deals lead with pipeline value when present.
+    const hasValue = (gb as Record<string, number>[]).some((row) => (row.valueSum ?? 0) > 0);
+    if (hasValue) {
+      metric = "deal value";
+      unit = "currency";
+      valueOf = (row) => row.valueSum ?? 0;
+    } else {
+      metric = "deals";
+    }
+  } else if (name === "query_deals") {
+    metric = "deals"; // stage / owner → counts
+  }
+
+  const points = (gb as Record<string, number>[])
+    .map((row) => ({
+      label: String((row as unknown as { key: string }).key),
+      value: Math.round(valueOf(row)),
+    }))
+    .filter((p) => Number.isFinite(p.value))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
+  if (points.length < 3 || !points.some((p) => p.value !== 0)) return undefined;
+
+  return { dimension: groupBy, metric, unit, points };
 }
 
 export interface AgentResult {
@@ -211,6 +277,7 @@ export async function runAgent(history: IncomingMessage[]): Promise<AgentResult>
         name: call.function.name,
         arguments: args,
         resultPreview: serialized.length > 600 ? serialized.slice(0, 600) + "…" : serialized,
+        chart: extractChart(call.function.name, args, result),
       });
 
       messages.push({
