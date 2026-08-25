@@ -12,6 +12,8 @@ export interface ToolTraceEntry {
   arguments: Record<string, unknown>;
   resultPreview: string;
   chart?: ChartSeries;
+  /** % of this call's matching records that had the field its figure is built from. */
+  fieldCompleteness?: number;
 }
 
 export interface Confidence {

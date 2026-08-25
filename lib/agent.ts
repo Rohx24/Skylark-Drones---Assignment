@@ -154,6 +154,39 @@ export interface ToolTraceEntry {
   resultPreview: string;
   /** Un-truncated, chart-ready series when the tool grouped by a dimension. */
   chart?: ChartSeries;
+  /** % of THIS call's matching records that had the field its numbers are
+   *  built from (e.g. deal value, billed value) — undefined when the tool
+   *  has no single obvious field (cross-board lookup, data-quality scan). */
+  fieldCompleteness?: number;
+}
+
+/**
+ * Real, per-query completeness (not the whole board's) — how much of the
+ * SPECIFIC filtered set behind this answer actually had the field its sum
+ * is built from. Computed from the same counts the tool already returns, so
+ * it moves with the question instead of being a fixed board-wide number.
+ */
+function extractCompleteness(name: string, result: unknown): number | undefined {
+  if (name === "query_deals") {
+    const r = result as { count?: number; dealValue?: { countMissingValue?: number } };
+    if (!r?.count) return undefined;
+    const missing = r.dealValue?.countMissingValue ?? 0;
+    return Math.round(((r.count - missing) / r.count) * 1000) / 10;
+  }
+  if (name === "query_work_orders") {
+    const r = result as {
+      count?: number;
+      amountTypeUsed?: string;
+      amounts?: { countMissingBilledExclGst?: number; countMissingBilledInclGst?: number };
+    };
+    if (!r?.count) return undefined;
+    const missing =
+      r.amountTypeUsed === "incl_gst"
+        ? r.amounts?.countMissingBilledInclGst ?? 0
+        : r.amounts?.countMissingBilledExclGst ?? 0;
+    return Math.round(((r.count - missing) / r.count) * 1000) / 10;
+  }
+  return undefined;
 }
 
 /**
@@ -280,6 +313,7 @@ export async function runAgent(history: IncomingMessage[]): Promise<AgentResult>
         arguments: args,
         resultPreview: serialized.length > 600 ? serialized.slice(0, 600) + "…" : serialized,
         chart: extractChart(call.function.name, args, result),
+        fieldCompleteness: extractCompleteness(call.function.name, result),
       });
 
       messages.push({

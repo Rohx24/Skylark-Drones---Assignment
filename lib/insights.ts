@@ -204,12 +204,14 @@ const TOOL_BOARDS: Record<string, ("deals" | "workOrders")[]> = {
 
 /** Null when no data tool ran (e.g. a clarifying question) — show nothing. */
 export function computeConfidence(
-  toolNames: string[],
+  toolTrace: { name: string; fieldCompleteness?: number }[],
   statuses: BoardStatus[]
 ): Confidence | null {
   const used = new Set<"deals" | "workOrders">();
-  for (const name of toolNames) {
-    for (const b of TOOL_BOARDS[name] ?? []) used.add(b);
+  const perCallScores: number[] = [];
+  for (const t of toolTrace) {
+    for (const b of TOOL_BOARDS[t.name] ?? []) used.add(b);
+    if (t.fieldCompleteness != null) perCallScores.push(t.fieldCompleteness);
   }
   if (used.size === 0) return null;
 
@@ -218,17 +220,25 @@ export function computeConfidence(
     .map((s) => ({ title: s.title, completeness: s.completeness }));
   if (boards.length === 0) return null;
 
-  const score = Math.round(
-    boards.reduce((a, b) => a + b.completeness, 0) / boards.length
-  );
+  // Prefer the real, per-query completeness (how many of THIS answer's
+  // matching records actually had the field it's citing) — it moves with
+  // the question. Fall back to the board-wide average only for tools with
+  // no single obvious field (cross-board lookup, the data-quality scan).
+  const usingPerCall = perCallScores.length > 0;
+  const score = usingPerCall
+    ? Math.round(perCallScores.reduce((a, s) => a + s, 0) / perCallScores.length)
+    : Math.round(boards.reduce((a, b) => a + b.completeness, 0) / boards.length);
+
   const level = score >= 80 ? "High" : score >= 60 ? "Moderate" : "Limited";
   const boardList = boards.map((b) => b.title).join(" + ");
   return {
     score,
     level,
-    basis: `Reflects average field completeness of the ${boardList} board${
-      boards.length > 1 ? "s" : ""
-    } this answer read — not a measure of interpretation.`,
+    basis: usingPerCall
+      ? `Reflects how many of the specific records behind this answer actually had the field its figure is built from — not the whole board's average.`
+      : `Reflects average field completeness of the ${boardList} board${
+          boards.length > 1 ? "s" : ""
+        } this answer read — not a measure of interpretation.`,
     boards,
   };
 }

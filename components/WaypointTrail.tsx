@@ -45,6 +45,9 @@ export function WaypointTrail({
       {trace.map((t, i) => {
         const isLast = i === trace.length - 1;
         const chips = resultChips(t.resultPreview);
+        if (t.fieldCompleteness != null) {
+          chips.push(`${Math.round(t.fieldCompleteness)}% have this field`);
+        }
         return (
           <li key={i} className="relative flex gap-3.5 pb-4 last:pb-0">
             {/* flight line + waypoint node */}

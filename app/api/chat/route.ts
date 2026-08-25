@@ -53,10 +53,7 @@ export async function POST(req: Request) {
     let confidence = null;
     try {
       const { statuses } = await getBoardStatuses();
-      confidence = computeConfidence(
-        result.toolTrace.map((t) => t.name),
-        statuses
-      );
+      confidence = computeConfidence(result.toolTrace, statuses);
     } catch {
       confidence = null; // never fail the answer over the confidence add-on
     }
