@@ -40,8 +40,8 @@ export function MiniBarChart({ chart }: { chart: ChartSeries }) {
   const fmt = chart.unit === "currency" ? (v: number) => inrCompact(v) : (v: number) => `${v}`;
 
   return (
-    <div className="mt-3 rounded border border-[color:var(--line-soft)] bg-[color:var(--panel-inset)] px-3 py-2.5">
-      <div className="mb-1.5 flex items-baseline justify-between">
+    <div className="mt-4 rounded-lg bg-[color:var(--panel)] px-4 py-3">
+      <div className="mb-2 flex items-baseline justify-between">
         <span className="tick text-[color:var(--teal-deep)]">
           {chart.metric} by {chart.dimension}
         </span>

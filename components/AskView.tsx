@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { RichText } from "./RichText";
 import { MiniBarChart } from "./MiniBarChart";
-import { CopyIcon, CheckIcon, SendIcon, DroneIcon, ReasonIcon } from "./icons";
+import { CopyIcon, CheckIcon, SendIcon, ReasonIcon } from "./icons";
 import { buildBrief, type ChartSeries, type ChatMessage, type Confidence } from "./format";
 
 const STARTERS = [
@@ -65,21 +65,19 @@ export const AskView = forwardRef<HTMLInputElement, Props>(function AskView(
 
   return (
     <div className="flex h-full flex-col">
-      <div ref={scrollRef} className="scroll-thin flex-1 overflow-y-auto px-5 py-6 md:px-8">
-        <div className="mx-auto max-w-3xl">
+      <div ref={scrollRef} className="scroll-thin flex-1 overflow-y-auto px-6 py-10 md:px-10">
+        <div className="u-column">
           {messages.length === 0 ? (
             <EmptyState onPick={submit} />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-9">
               {messages.map((m, i) => (
                 <MessageRow
                   key={i}
                   message={m}
                   question={
-                    m.role === "assistant"
-                      ? messages[i - 1]?.role === "user"
-                        ? messages[i - 1].content
-                        : ""
+                    m.role === "assistant" && messages[i - 1]?.role === "user"
+                      ? messages[i - 1].content
                       : ""
                   }
                   mode={mode}
@@ -95,31 +93,28 @@ export const AskView = forwardRef<HTMLInputElement, Props>(function AskView(
       </div>
 
       {/* input dock */}
-      <div className="border-t border-[color:var(--line)] bg-[color:var(--panel)]/70 px-5 py-3.5 md:px-8">
+      <div className="border-t border-[color:var(--line-soft)] px-6 py-4 md:px-10">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             submit(input);
           }}
-          className="mx-auto flex max-w-3xl items-center gap-2.5"
+          className="u-column flex items-center gap-2.5"
         >
-          <div className="tick shrink-0 rounded-sm border border-[color:var(--line)] px-1.5 py-1">
-            ⌘K
-          </div>
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about pipeline, revenue, work orders, billing…"
             disabled={loading}
-            className="focus-ring flex-1 rounded-md border border-[color:var(--line)] bg-[color:var(--panel-2)] px-3.5 py-2.5 text-[13.5px] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-faint)]"
+            className="focus-ring flex-1 rounded-lg border border-[color:var(--line)] bg-[color:var(--panel-2)] px-4 py-3 text-[15px] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-faint)]"
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="focus-ring flex items-center gap-1.5 rounded-md bg-[color:var(--teal)] px-3.5 py-2.5 text-[13px] font-medium text-white transition-opacity disabled:opacity-40"
+            className="focus-ring flex items-center gap-1.5 rounded-lg bg-[color:var(--teal)] px-4 py-3 text-[14px] font-medium text-white transition-opacity disabled:opacity-40"
           >
-            <SendIcon width={15} height={15} /> Send
+            <SendIcon width={16} height={16} /> Send
           </button>
         </form>
       </div>
@@ -129,30 +124,23 @@ export const AskView = forwardRef<HTMLInputElement, Props>(function AskView(
 
 function EmptyState({ onPick }: { onPick: (q: string) => void }) {
   return (
-    <div className="pt-6">
-      <div className="mb-1 flex items-center gap-2 text-[color:var(--teal)]">
-        <DroneIcon width={20} height={20} />
-        <span className="tick text-[color:var(--teal-deep)]">Survey console · ready</span>
-      </div>
-      <h2 className="text-[22px] font-semibold tracking-tight text-[color:var(--ink)]">
-        Ask the survey.
-      </h2>
-      <p className="mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-[color:var(--ink-soft)]">
+    <div className="pt-8">
+      <span className="tick text-[color:var(--teal-deep)]">Survey console</span>
+      <h2 className="u-h1 mt-3">Ask the survey.</h2>
+      <p className="u-lead mt-3 max-w-xl">
         Natural-language questions answered from two live monday.com boards. Every figure is
         computed server-side from a real board read — never estimated by the model.
       </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <div className="mt-9 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {STARTERS.map((s) => (
           <button
             key={s.q}
             onClick={() => onPick(s.q)}
-            className="panel corner-ticks group flex flex-col items-start gap-1.5 px-4 py-3.5 text-left transition-colors hover:border-[color:var(--teal)]"
+            className="group flex flex-col items-start gap-2 rounded-lg bg-[color:var(--panel)] px-4 py-4 text-left transition-colors hover:bg-[color:var(--panel-2)]"
           >
             <span className="tick text-[color:var(--teal-deep)]">{s.tag}</span>
-            <span className="text-[13px] text-[color:var(--ink)] group-hover:text-[color:var(--teal-deep)]">
-              {s.q}
-            </span>
+            <span className="text-[14.5px] leading-snug text-[color:var(--ink)]">{s.q}</span>
           </button>
         ))}
       </div>
@@ -178,37 +166,35 @@ function MessageRow({
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-lg rounded-br-sm bg-[color:var(--ink)] px-3.5 py-2 text-[13.5px] leading-relaxed text-[color:var(--paper)]">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[color:var(--ink)] px-4 py-2.5 text-[15px] leading-relaxed text-[color:var(--paper)]">
           {message.content}
         </div>
       </div>
     );
   }
 
+  const chart = pickChart(message);
+
+  // Assistant answers render as clean prose on the paper — no bordered box.
+  // Separation between turns comes from whitespace, not chrome.
   return (
-    <div className="flex flex-col gap-2.5">
-      <div
-        className={`panel corner-ticks panel-2 px-4 py-3.5 ${
-          message.error ? "border-[color:var(--bad)]" : ""
-        }`}
-      >
-        {message.error ? (
-          <p className="text-[13px] text-[color:var(--bad)]">{message.content}</p>
-        ) : (
-          <RichText text={message.content} />
-        )}
+    <div>
+      {message.error ? (
+        <p className="u-answer text-[color:var(--bad)]">{message.content}</p>
+      ) : (
+        <RichText text={message.content} />
+      )}
 
-        {!message.error && pickChart(message) && <MiniBarChart chart={pickChart(message)!} />}
+      {!message.error && chart && <MiniBarChart chart={chart} />}
 
-        {!message.error && (
-          <AnswerFooter
-            message={message}
-            question={question}
-            mode={mode}
-            onOpenReasoning={onOpenReasoning}
-          />
-        )}
-      </div>
+      {!message.error && (
+        <AnswerFooter
+          message={message}
+          question={question}
+          mode={mode}
+          onOpenReasoning={onOpenReasoning}
+        />
+      )}
 
       {isLastAssistant && !message.error && (
         <Followups question={question} onPick={onFollowup} />
@@ -238,35 +224,35 @@ function AnswerFooter({
   }
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[color:var(--line-soft)] pt-2.5">
-      {message.confidence && <ConfidenceMeter confidence={message.confidence} mode={mode} />}
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+      {message.confidence && <ConfidenceTag confidence={message.confidence} mode={mode} />}
 
       <button
         onClick={copyBrief}
-        className="tick flex items-center gap-1.5 hover:text-[color:var(--teal)]"
+        className="u-meta flex items-center gap-1.5 transition-colors hover:text-[color:var(--teal)]"
       >
         {copied ? <CheckIcon width={13} height={13} /> : <CopyIcon width={13} height={13} />}
-        {copied ? "Copied" : "Copy for leadership brief"}
+        {copied ? "Copied" : "Copy brief"}
       </button>
 
       {mode === "technical" && toolCount > 0 && (
         <button
           onClick={onOpenReasoning}
-          className="tick flex items-center gap-1.5 hover:text-[color:var(--teal)]"
+          className="u-meta flex items-center gap-1.5 transition-colors hover:text-[color:var(--teal)]"
         >
           <ReasonIcon width={13} height={13} />
-          {toolCount} waypoint{toolCount === 1 ? "" : "s"} · view flight path
+          {toolCount} waypoint{toolCount === 1 ? "" : "s"}
         </button>
       )}
 
       {mode === "technical" && message.model && (
-        <span className="tick ml-auto">{message.model}</span>
+        <span className="u-meta ml-auto">{message.model}</span>
       )}
     </div>
   );
 }
 
-function ConfidenceMeter({
+function ConfidenceTag({
   confidence,
   mode,
 }: {
@@ -285,32 +271,20 @@ function ConfidenceMeter({
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2"
-        title="Data completeness of the board(s) this answer read"
+        className="u-meta flex items-center gap-2"
+        title={confidence.basis}
       >
-        <span className="tick">Data conf.</span>
-        <span className="flex h-1.5 w-16 overflow-hidden rounded-full bg-[color:var(--panel-inset)]">
-          <span
-            className="h-full rounded-full"
-            style={{ width: `${confidence.score}%`, background: color }}
-          />
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+        <span style={{ color }} className="font-medium">
+          {confidence.level} confidence
         </span>
-        <span className="mono text-[11px] font-semibold" style={{ color }}>
-          {confidence.level} · {confidence.score}%
-        </span>
+        <span className="mono opacity-70">{confidence.score}%</span>
       </button>
 
       {(open || mode === "technical") && (
-        <div className="mt-1.5 max-w-md rounded border border-[color:var(--line-soft)] bg-[color:var(--panel-inset)] px-2.5 py-2">
-          <p className="text-[11px] leading-relaxed text-[color:var(--ink-soft)]">{confidence.basis}</p>
-          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-            {confidence.boards.map((b) => (
-              <span key={b.title} className="mono text-[10.5px] text-[color:var(--ink-faint)]">
-                {b.title}: {b.completeness}% complete
-              </span>
-            ))}
-          </div>
-        </div>
+        <p className="u-meta mt-1.5 max-w-md leading-relaxed">
+          {confidence.basis}
+        </p>
       )}
     </div>
   );
@@ -319,13 +293,12 @@ function ConfidenceMeter({
 function Followups({ question, onPick }: { question: string; onPick: (q: string) => void }) {
   const chips = suggestFollowups(question);
   return (
-    <div className="flex flex-wrap items-center gap-2 pl-1">
-      <span className="tick">Go deeper</span>
+    <div className="mt-5 flex flex-wrap gap-2">
       {chips.map((c) => (
         <button
           key={c}
           onClick={() => onPick(c)}
-          className="rounded-full border border-[color:var(--line)] bg-[color:var(--panel-2)] px-3 py-1 text-[12px] text-[color:var(--ink-soft)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
+          className="rounded-full bg-[color:var(--panel)] px-3.5 py-1.5 text-[13px] text-[color:var(--ink-soft)] transition-colors hover:bg-[color:var(--panel-2)] hover:text-[color:var(--teal-deep)]"
         >
           {c}
         </button>
@@ -336,7 +309,7 @@ function Followups({ question, onPick }: { question: string; onPick: (q: string)
 
 function ThinkingRow() {
   return (
-    <div className="panel corner-ticks panel-2 flex items-center gap-3 px-4 py-3.5">
+    <div className="flex items-center gap-3">
       <span className="flex gap-1">
         {[0, 1, 2].map((i) => (
           <span
@@ -346,7 +319,7 @@ function ThinkingRow() {
           />
         ))}
       </span>
-      <span className="tick">Plotting waypoints · reading live boards…</span>
+      <span className="u-meta">Reading live boards…</span>
     </div>
   );
 }
