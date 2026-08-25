@@ -7,7 +7,7 @@ every answer is computed server-side from a real board read at query time.
 
 Next.js 14 (App Router) · TypeScript · Tailwind · OpenAI tool-calling · Recharts.
 
-**Live app:** _add your deployed URL here_ (see [Deploy](#deploy-vercel)).
+**Live app:** <https://skylark-drones-assignment.vercel.app/> — no local setup needed.
 
 ---
 
@@ -109,7 +109,8 @@ normalization issues), `POST /api/monday` (thin GraphQL passthrough).
 2. In the Vercel project's **Settings → Environment Variables**, set
    `MONDAY_API_TOKEN` and `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`). Do
    **not** commit these — `.env*.local` is gitignored.
-3. Deploy, then put the resulting URL at the top of this README.
+3. Deploy. The current deployment lives at
+   <https://skylark-drones-assignment.vercel.app/>.
 
 ## Data notes / gotchas
 
