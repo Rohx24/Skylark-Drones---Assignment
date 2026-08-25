@@ -242,16 +242,17 @@ details[open] > summary .chevron {
   transform: rotate(90deg);
 }
 
-/* Printing the board report: hide everything except its own root. */
+/* Printing a modal (board report, conversation export): hide everything
+   else on the page and let only the printable root fill it. */
 @media print {
   body * {
     visibility: hidden;
   }
-  #board-report-root,
-  #board-report-root * {
+  .printable-root,
+  .printable-root * {
     visibility: visible;
   }
-  #board-report-root {
+  .printable-root {
     position: absolute;
     inset: 0;
     max-height: none !important;

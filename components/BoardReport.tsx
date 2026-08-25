@@ -78,7 +78,7 @@ export function BoardReport({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--ink)]/45 p-4 backdrop-blur-[2px]">
       <div
         id="board-report-root"
-        className="panel corner-ticks flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden shadow-xl"
+        className="printable-root panel corner-ticks flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-[color:var(--line-soft)] px-5 py-4">
           <div className="flex items-center gap-2.5">

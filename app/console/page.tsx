@@ -5,7 +5,9 @@ import { AskView } from "@/components/AskView";
 import { ReasoningView } from "@/components/ReasoningView";
 import { DataView, type InsightsData } from "@/components/DataView";
 import { Onboarding, ONBOARDED_KEY } from "@/components/Onboarding";
-import { AskIcon, ReasonIcon, DataIcon, DroneIcon, HelpIcon } from "@/components/icons";
+import { BoardReport } from "@/components/BoardReport";
+import { ConversationExport } from "@/components/ConversationExport";
+import { AskIcon, ReasonIcon, DataIcon, DroneIcon, HelpIcon, DownloadIcon } from "@/components/icons";
 import { relativeTime, type ChatMessage } from "@/components/format";
 
 type View = "ask" | "reasoning" | "data";
@@ -26,6 +28,8 @@ export default function Console() {
   const [insightsError, setInsightsError] = useState<string>();
   const [, setTick] = useState(0); // re-render for "synced Xs ago"
   const [tourOpen, setTourOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -139,13 +143,29 @@ export default function Console() {
 
         <div className="flex items-center gap-4">
           <SyncBadge insights={insights} error={insightsError} />
-          <button
-            onClick={() => setTourOpen(true)}
-            title="Replay the guide"
-            className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
-          >
-            <HelpIcon width={14} height={14} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setExportOpen(true)}
+              title="Export conversation"
+              className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
+            >
+              <DownloadIcon width={14} height={14} />
+            </button>
+            <button
+              onClick={() => setReportOpen(true)}
+              title="Board report"
+              className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
+            >
+              <DataIcon width={14} height={14} />
+            </button>
+            <button
+              onClick={() => setTourOpen(true)}
+              title="Replay the guide"
+              className="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-faint)] transition-colors hover:border-[color:var(--teal)] hover:text-[color:var(--teal-deep)]"
+            >
+              <HelpIcon width={14} height={14} />
+            </button>
+          </div>
           <ModeToggle mode={mode} setMode={setMode} />
         </div>
       </header>
@@ -208,7 +228,7 @@ export default function Console() {
             <ReasoningView messages={messages} />
           </ViewPane>
           <ViewPane active={view === "data"}>
-            <DataView data={insights} error={insightsError} />
+            <DataView data={insights} error={insightsError} onOpenReport={() => setReportOpen(true)} />
           </ViewPane>
         </main>
       </div>
@@ -222,6 +242,9 @@ export default function Console() {
           setTimeout(() => inputRef.current?.focus(), 30);
         }}
       />
+
+      {reportOpen && <BoardReport onClose={() => setReportOpen(false)} />}
+      {exportOpen && <ConversationExport messages={messages} onClose={() => setExportOpen(false)} />}
     </div>
   );
 }
