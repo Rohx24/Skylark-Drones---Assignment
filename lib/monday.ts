@@ -25,17 +25,44 @@ import {
 
 const MONDAY_ENDPOINT = "https://api.monday.com/v2";
 const API_VERSION = "2024-01";
-const PAGE_LIMIT = 100;
+// Larger pages = fewer sequential round-trips, so fewer chances for monday's
+// flaky API to fail one. 500 is monday's items_page max; with the light
+// text-only column set, both boards fit in a single page each.
+const PAGE_LIMIT = 500;
+
+interface MondayGraphQLError {
+  message: string;
+  extensions?: { code?: string; status_code?: number; error_code?: string };
+}
 
 export interface MondayQueryResult<T = unknown> {
   data?: T;
-  errors?: { message: string }[];
+  errors?: MondayGraphQLError[];
   error_message?: string;
 }
 
+const MAX_ATTEMPTS = 6;
+
+/** monday's downstream service is intermittently flaky on heavy queries — these
+ *  errors are transient and worth retrying, unlike auth/user errors. */
+function isTransientGraphQLError(errors: MondayGraphQLError[]): boolean {
+  return errors.some((e) => {
+    const code = e.extensions?.code ?? "";
+    const status = e.extensions?.status_code ?? 0;
+    return (
+      status >= 500 ||
+      /INTERNAL_SERVER_ERROR|DOWNSTREAM_SERVICE_ERROR|TIMEOUT/i.test(code) ||
+      /internal server error|timeout|temporarily/i.test(e.message)
+    );
+  });
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Low-level GraphQL client. Throws on network / GraphQL errors so callers can
- * surface a clear failure instead of silently returning empty data.
+ * Low-level GraphQL client with retry-and-backoff for monday's transient 5xx /
+ * "Internal Server Error" downstream failures (common on the heavy all-columns
+ * query). Auth errors and other GraphQL errors fail fast — no point retrying.
  */
 export async function mondayQuery<T = unknown>(
   query: string,
@@ -48,37 +75,63 @@ export async function mondayQuery<T = unknown>(
     );
   }
 
-  const res = await fetch(MONDAY_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token,
-      "API-Version": API_VERSION,
-    },
-    body: JSON.stringify({ query, variables }),
-    // Always hit the live API; never cache BI data.
-    cache: "no-store",
-  });
+  let lastError = "";
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`monday API HTTP ${res.status}: ${body.slice(0, 500)}`);
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(MONDAY_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
+          "API-Version": API_VERSION,
+        },
+        body: JSON.stringify({ query, variables }),
+        cache: "no-store", // always live; never cache BI data
+      });
+    } catch (err) {
+      // Network blip — retry.
+      lastError = `network error: ${err instanceof Error ? err.message : String(err)}`;
+      if (attempt < MAX_ATTEMPTS) await sleep(attempt * 500);
+      continue;
+    }
+
+    // Retry transient HTTP 5xx / 429; fail fast on other non-OK (e.g. 401).
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      if ((res.status >= 500 || res.status === 429) && attempt < MAX_ATTEMPTS) {
+        lastError = `monday API HTTP ${res.status}`;
+        await sleep(attempt * 600);
+        continue;
+      }
+      throw new Error(`monday API HTTP ${res.status}: ${body.slice(0, 300)}`);
+    }
+
+    const json = (await res.json()) as MondayQueryResult<T>;
+
+    if (json.errors && json.errors.length > 0) {
+      if (isTransientGraphQLError(json.errors) && attempt < MAX_ATTEMPTS) {
+        lastError = `monday GraphQL: ${json.errors.map((e) => e.message).join("; ")}`;
+        await sleep(attempt * 600);
+        continue;
+      }
+      throw new Error(
+        `monday GraphQL error: ${json.errors.map((e) => e.message).join("; ")}`
+      );
+    }
+    if (json.error_message) {
+      throw new Error(`monday API error: ${json.error_message}`);
+    }
+    if (json.data === undefined) {
+      throw new Error("monday API returned no data");
+    }
+    return json.data;
   }
 
-  const json = (await res.json()) as MondayQueryResult<T>;
-
-  if (json.errors && json.errors.length > 0) {
-    throw new Error(
-      `monday GraphQL error: ${json.errors.map((e) => e.message).join("; ")}`
-    );
-  }
-  if (json.error_message) {
-    throw new Error(`monday API error: ${json.error_message}`);
-  }
-  if (json.data === undefined) {
-    throw new Error("monday API returned no data");
-  }
-  return json.data;
+  throw new Error(
+    `monday API failed after ${MAX_ATTEMPTS} attempts (transient upstream errors). Last: ${lastError}`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -97,8 +150,13 @@ interface NextItemsResponse {
   next_items_page: MondayItemsPage;
 }
 
+// Only fetch the columns the app actually maps, and only `text` (the sole
+// field the record builder reads). This is a MUCH lighter query than pulling
+// every column with text+value+type — which matters because monday's API
+// intermittently 500s on heavy column_values queries. Lighter query → far
+// lower failure rate and faster fetches.
 const FIRST_PAGE_QUERY = `
-  query ($boardId: [ID!], $limit: Int!) {
+  query ($boardId: [ID!], $limit: Int!, $columnIds: [String!]) {
     boards(ids: $boardId) {
       id
       columns {
@@ -110,11 +168,9 @@ const FIRST_PAGE_QUERY = `
         items {
           id
           name
-          column_values {
+          column_values(ids: $columnIds) {
             id
             text
-            value
-            type
           }
         }
       }
@@ -123,17 +179,15 @@ const FIRST_PAGE_QUERY = `
 `;
 
 const NEXT_PAGE_QUERY = `
-  query ($cursor: String!, $limit: Int!) {
+  query ($cursor: String!, $limit: Int!, $columnIds: [String!]) {
     next_items_page(cursor: $cursor, limit: $limit) {
       cursor
       items {
         id
         name
-        column_values {
+        column_values(ids: $columnIds) {
           id
           text
-          value
-          type
         }
       }
     }
@@ -146,11 +200,12 @@ interface BoardFetch {
   titleById: Record<string, string>;
 }
 
-/** Fetch every item on a board (plus column titles), following cursors. */
-async function fetchAllItems(boardId: string): Promise<BoardFetch> {
+/** Fetch every item on a board (only the given columns), following cursors. */
+async function fetchAllItems(boardId: string, columnIds: string[]): Promise<BoardFetch> {
   const first = await mondayQuery<BoardItemsResponse>(FIRST_PAGE_QUERY, {
     boardId: [boardId],
     limit: PAGE_LIMIT,
+    columnIds,
   });
 
   const board = first.boards?.[0];
@@ -171,6 +226,7 @@ async function fetchAllItems(boardId: string): Promise<BoardFetch> {
     const next = await mondayQuery<NextItemsResponse>(NEXT_PAGE_QUERY, {
       cursor,
       limit: PAGE_LIMIT,
+      columnIds,
     });
     items.push(...next.next_items_page.items);
     cursor = next.next_items_page.cursor;
@@ -228,7 +284,10 @@ export interface DealsBoardResult {
 }
 
 export async function getDealsBoard(): Promise<DealsBoardResult> {
-  const { items, titleById } = await fetchAllItems(DEALS_BOARD_ID);
+  const { items, titleById } = await fetchAllItems(
+    DEALS_BOARD_ID,
+    Object.values(DEALS_COLUMNS)
+  );
   const records: DealRecord[] = [];
   let skipped = 0;
   let headerArtifactsSkipped = 0;
@@ -290,7 +349,10 @@ export interface WorkOrdersBoardResult {
 }
 
 export async function getWorkOrdersBoard(): Promise<WorkOrdersBoardResult> {
-  const { items, titleById } = await fetchAllItems(WORK_ORDERS_BOARD_ID);
+  const { items, titleById } = await fetchAllItems(
+    WORK_ORDERS_BOARD_ID,
+    Object.values(WORK_ORDER_COLUMNS)
+  );
   const records: WorkOrderRecord[] = [];
   let skipped = 0;
   let headerArtifactsSkipped = 0;
